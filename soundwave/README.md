@@ -423,14 +423,22 @@ This is where **SoundWave listens politely, checks its notes, and executes order
 
 - argv = array of strings from the command line.
 
+- and 2 fanctions of my own creation:
+
+1) **`parse_double()`**
+This one ,as some of you may already imagine, is for safely converting the numbers the user gives to double. So we use `strtod()` to turn a string to double ,as the name suggests. How does this work? `strtod()` keeps the last character it ofund that is not part of the number so if that is anything else than the null terminator it retuns 0; and from then on `handle_effect()` and `handle_dj_effect()` are responsible. (In case you find your elf wandering what I am talking about things will, hopefully become clearer as you keep reading).
+
+2) **`parse_int()`**
+More of the same. This time around the subject of interest are integers, so we use `strol()`, and do the same thing as above. Oh..., one small difference with strtol we need to specify that we want a base of 10 ,so we use strtol `(s, &end, 10)` 
+
+
 #### 1. `handle_effect()`
 
 The full-file general:  
 
-- Reads `argv[1]` to see what effect the user is asking for: `"info"`, `"volume"`, `"reverb"`, and the like.  
-- Checks the arguments like a cautious librarian checking overdue books.  
-- Converts strings to numbers (`atof()` / `atoi()`) with a polite nod.  
-- Calls the effect function with `dj_mode = 0` (apply everywhere, no questions asked).  
+- Reads `argv[1]` to see what effect the user is asking for: `"info"`, `"volume"`, `"reverb"`, and the like.    
+- Converts strings to numbers (The two parse_fanctions mentioned above play a big role) with a polite nod. In case of error it stops let the user know.  
+- Calls the effect function with `dj_mode = 0` (apply everywhere, no questions asked). Also the start and end second are 0. ()  
 
 Example: `volume` → convert `argv[2]` to `double`, ensure it’s positive, then `volume(fp_volume, 0, 0, 0)`.  
 
@@ -440,9 +448,7 @@ The DJ mode: **for when SoundWave only wants to meddle in a slice of time**.
 
 - Takes `argv[2]` and `argv[3]` as start and end seconds.  
 - Builds a tiny command array for the effect name and parameters.  
-- Calls the same effect function as the full-file mode, but with `dj_mode = 1` and start/end frames.  
-
-Think of it as SoundWave **sneaking in to tweak the volume while you’re not looking**.  
+- Calls the same effect function as the full-file mode, but with `dj_mode = 1` and start/end seconds (which will leater be converted to feames inside its dj_fanction).   
 
 #### 3. `main()`
 
@@ -451,13 +457,13 @@ The gatekeeper and bouncer:
 - No arguments → hands you a polite help message.  
 - `--help` → recites all global guidance.  
 - `effect --help` → whispers the secret ways of that specific effect.  
-- Dispatches wisely:  
+- Dispatches :  
   - `"dj"` → `handle_dj_effect()`  
   - Anything else → `handle_effect()`  
 
 #### 4. Unified effect interface
 
-All effects answer the same polite question:  
+All effects answer the same question:  
 
 ```effect_name(params..., int dj_mode, double start, double end)```
 
@@ -470,13 +476,18 @@ This keeps SoundWave **tidy, modular, and not repeating itself unnecessarily**.
 #### 5. Argument parsing & safety
 
 - `strcmp()` → recognizes which effect you meant.  
-- `atoi()` / `atof()` → turns words into numbers.  
+- `parse_double()` / `parse_int()` → turns words into numbers.  
 - Checks counts and ranges → prevents catastrophe.  
 - Unknown options → politely points out the error and guides you back to sanity.  
 
  **In a nutshell:**  
 
 - `handle_effect()` → everywhere, no exceptions.  
-- `handle_dj_effect()` → sneaky, time-limited mischief.  
+- `handle_dj_effect()` → At the time and setting of your liking.  
 - `main()` → decides who gets attention.  
-- All effects → reusable, checked, and ready to obey.
+- All effects → reusable, checked, and ready for your commands.
+
+#### 6. Return codes (hopefully)
+
+- return 0; → Hooray! You used soundwave correctly.
+- return 1; → You may be in need of guidance.
