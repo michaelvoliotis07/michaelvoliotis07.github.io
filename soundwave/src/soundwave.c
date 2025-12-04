@@ -1247,17 +1247,17 @@ void help_fuzz() {
     printf("Invocation: soundwave fuzz <fp_fuzz>\n");
     printf("Introduces harmonic annihilation and waveform indignities.\n");
     printf("A clean signal enters; a mangled, overexcited waveform leaves.\n");
-    printf("  <fp_fuzz>: 0.0 – 1.0\n");
+    printf("  <fp_fuzz>: 0.0 to who knows \n");
     printf("     Higher gain(fp_fuzz) forces the waveform to choose violence.\n");
     
 }
 
-void help_drive() {
-    printf("Invocation: soundwave drive <amount>\n");
+void help_overdrive() {
+    printf("Invocation: soundwave overdrive <amount>\n");
     printf("Applies soft-clipping nonlinearity, gently encouraging the\n");
     printf("signal to exceed its boundaries and reconsider its life choices.\n");
-    printf("  <amount>: 0.0 – 1.0\n");
-    printf("     Values near 1.0 produce the classic 'mathematician with\n");
+    printf("  <amount>: 0.0 to who knows\n");
+    printf("     Higher values produce the classic 'mathematician with\n");
     printf("     too much caffeine' oscillation.\n");
 }
 
@@ -1325,7 +1325,7 @@ void print_help(const char *prog_name) {
             printf(" volume — turns the amplitude knob of reality\n"); 
             printf(" generate — conjures tones from pure math and CPU whimsy; all knobs optional, defaults are generous\n"); 
             printf(" fuzz — turns signals into scorched rubble\n"); 
-            printf(" drive — persuades audio to misbehave politely\n"); 
+            printf(" overdrive — persuades audio to misbehave politely\n"); 
             printf(" bitcrush — removes bits it deems unnecessary (all of them)\n"); 
             printf(" tremolo — makes the volume wobble like a jelly in an earthquake\n"); 
             printf(" echo — convinces your sound to come back for another round\n"); 
@@ -1334,7 +1334,34 @@ void print_help(const char *prog_name) {
             printf(" soundwave <effect> --help\n"); 
             printf("…and it shall reveal its secrets.\n\n"); 
             printf("For those who dare to experiment, try dj --help for a special mode of chaos.\n"); 
-            fprintf(stderr, "Usage: %s <command> [args]\n", prog_name); 
+            fprintf(stderr, "Usage: %s <command> [args]\n", prog_name);
+}
+
+//This fanction converts the number given by the user in double.
+//Makes sure nothing is out line.
+//1...a, 1Q, .... won't work
+int parse_double(const char *s, double *out) {
+    char *end;
+    double val = strtod(s, &end);// store the last character tha is not the number to the pointer n
+    if (*end != '\0') 
+    return 0;  // in case of invalid trailing chars
+    *out = val;//put the converted double to out
+    return 1;
+}
+
+//The same thing here.
+//This time for integers instead of doubles.
+int parse_int(const char *s, int *out) {
+    char *end;
+    long val = strtol(s, &end, 10);//.... Also base 10(we store them as decimal numbers-integers)
+
+    if (end == s) 
+    return 0;
+    if (*end != '\0') 
+    return 0;// in case of invalid trailing chars
+
+    *out = (int)val;//put the converted integer to out
+    return 1;
 }
 
 int handle_effect(int argc, char **argv) {
@@ -1344,10 +1371,16 @@ int handle_effect(int argc, char **argv) {
     }
     else if (strcmp(argv[1], "rate") == 0) {
         if (argc != 3) {
-            fprintf(stderr, "Usage: %s rate <fp_rate>\n", argv[0]);
+            fprintf(stderr, "Usage: %s rate <fp_rate>, try --help for more.\n", argv[0]);
             return 1;
         }
-        double fp_rate = atof(argv[2]);  // convert string to double
+        double fp_rate ;  // convert string to double
+        
+        if (!parse_double(argv[2], &fp_rate)) {
+            fprintf(stderr, "Error: invalid fp_rate\n");
+            return 1;
+        }
+        
         if (fp_rate <= 0) {
             fprintf(stderr, "Error: fp_rate must be positive\n");
             return 1;
@@ -1358,7 +1391,7 @@ int handle_effect(int argc, char **argv) {
     else if (strcmp(argv[1], "channel") == 0) {
      // Usage: program channel <left|right>
      if (argc != 3) {
-        fprintf(stderr, "Usage: %s channel <left|right>\n", argv[0]);
+        fprintf(stderr, "Usage: %s channel <left|right>, try --help for more\n", argv[0]);
         return 1;
      }
 
@@ -1378,9 +1411,19 @@ int handle_effect(int argc, char **argv) {
      return 0;  // call your channels function
     } 
     else if (strcmp(argv[1], "volume") == 0) {
-        if (argc != 3) { fprintf(stderr,"Usage: %s volume <fp_volume>\n",argv[0]); return 1; }
-        double fp_volume = atof(argv[2]);
-        if (fp_volume <= 0) { fprintf(stderr,"Error: fp_volume must be positive\n"); return 1; }
+        if (argc != 3) { 
+            fprintf(stderr,"Usage: %s volume <fp_volume>\n",argv[0]); 
+            return 1; }
+        double fp_volume;
+
+        if (!parse_double(argv[2], &fp_volume)) {
+            fprintf(stderr,"Error: fp_volume must be a valid number\n");
+            return 1;
+        }
+        if (fp_volume <= 0) {
+            fprintf(stderr,"Error: fp_volume must be positive\n");
+            return 1;
+        }
         volume(fp_volume, 0, 0, 0);
         return 0;
     }
@@ -1395,15 +1438,45 @@ int handle_effect(int argc, char **argv) {
 
      // Optional arguments parsing
      for (int i = 2; i < argc; i++) {
-        if (strcmp(argv[i], "--dur") == 0 && i+1 < argc) dur = atoi(argv[++i]);
-        else if (strcmp(argv[i], "--sr") == 0 && i+1 < argc) sr = atoi(argv[++i]);
-        else if (strcmp(argv[i], "--fm") == 0 && i+1 < argc) fm = atof(argv[++i]);
-        else if (strcmp(argv[i], "--fc") == 0 && i+1 < argc) fc = atof(argv[++i]);
-        else if (strcmp(argv[i], "--mi") == 0 && i+1 < argc) mi = atof(argv[++i]);
-        else if (strcmp(argv[i], "--amp") == 0 && i+1 < argc) amp = atof(argv[++i]);
+        if (strcmp(argv[i], "--dur") == 0 && i+1 < argc) {
+         if (!parse_int(argv[++i], &dur)) {
+                    fprintf(stderr, "Error: invalid --dur\n");
+                    return 1;
+                }
+        }        
+        else if (strcmp(argv[i], "--sr") == 0 && i+1 < argc) {
+                if (!parse_int(argv[++i], &sr)) {
+                    fprintf(stderr, "Error: invalid --sr\n");
+                    return 1;
+                }
+        }
+        else if (strcmp(argv[i], "--fm") == 0 && i+1 < argc) {
+                if (!parse_double(argv[++i], &fm)) {
+                    fprintf(stderr, "Error: invalid --fm\n");
+                    return 1;
+                }
+        }
+        else if (strcmp(argv[i], "--fc") == 0 && i+1 < argc) {
+                if (!parse_double(argv[++i], &fc)) {
+                    fprintf(stderr, "Error: invalid --fc\n");
+                    return 1;
+                }
+        }
+        else if (strcmp(argv[i], "--mi") == 0 && i+1 < argc) {
+                if (!parse_double(argv[++i], &mi)) {
+                    fprintf(stderr, "Error: invalid --mi\n");
+                    return 1;
+                }
+        }
+            else if (strcmp(argv[i], "--amp") == 0 && i+1 < argc) {
+                if (!parse_double(argv[++i], &amp)) {
+                    fprintf(stderr, "Error: invalid --amp\n");
+                    return 1;
+                }
+        }
         else {
-            fprintf(stderr, "Unknown option: %s\n", argv[i]);
-            return 1;
+                fprintf(stderr,"Unknown option: %s\n", argv[i]);
+                return 1;
         }
      }
 
@@ -1412,41 +1485,84 @@ int handle_effect(int argc, char **argv) {
      return 0;
     }
     else if (strcmp(argv[1], "fuzz") == 0) {
-        if (argc != 3) { fprintf(stderr,"Usage: %s fuzz <fp_fuzz>\n",argv[0]); return 1; }
-        double fp_fuzz = atof(argv[2]);
-        if (fp_fuzz <= 0) { fprintf(stderr,"Error: fp_fuzz must be positive\n"); return 1; }
+        if (argc != 3) { 
+            fprintf(stderr,"Usage: %s fuzz <fp_fuzz>, try --help for more.\n",argv[0]); 
+            return 1; }
+
+        double fp_fuzz;
+        if (!parse_double(argv[2], &fp_fuzz)) {
+            fprintf(stderr,"Error: invalid fp_fuzz\n");
+            return 1;
+        }
+        if (fp_fuzz <= 0) { 
+            fprintf(stderr,"Error: fp_fuzz must be positive\n"); 
+            return 1; }
+
         fuzz(fp_fuzz, 0, 0, 0);
         return 0;
     }
     else if (strcmp(argv[1], "overdrive") == 0) {
-        if (argc != 3) { fprintf(stderr,"Usage: %s overdrive <amount>\n",argv[0]); return 1; }
-        double amount = atof(argv[2]);
-        if (amount <= 0) { fprintf(stderr,"Error: overdrive must be positive\n"); return 1; }
+        if (argc != 3) { 
+            fprintf(stderr,"Usage: %s overdrive <amount>, try --help for more\n",argv[0]); 
+            return 1; }
+        double amount;
+        if (!parse_double(argv[2], &amount)) {
+            fprintf(stderr,"Error: invalid amount\n");
+            return 1;
+        }
+        if (amount <= 0) { 
+            fprintf(stderr,"Error: overdrive must be positive\n"); 
+            return 1; }
         overdrive(amount, 0, 0, 0);
         return 0;
     }
     else if (strcmp(argv[1], "reverb") == 0) {
-        if (argc != 3) { fprintf(stderr,"Usage: %s reverb <room>\n",argv[0]); return 1; }
-        double room = atof(argv[2]);
-        if (room <= 0 || room >= 1) { fprintf(stderr,"Error: room must be 0-1\n"); return 1; }
+        if (argc != 3) { 
+            fprintf(stderr,"Usage: %s reverb <room>, try --help for more.\n",argv[0]); 
+            return 1; }
+        double room;
+        
+        if (!parse_double(argv[2], &room)) {
+            fprintf(stderr,"Error: invalid room value\n");
+            return 1;
+        }
+
+        if (room <= 0 || room >= 1) { 
+            fprintf(stderr,"Error: room must be 0-1\n"); 
+            return 1; }
         reverb(room, 0, 0, 0);
         return 0;
     }
     else if (strcmp(argv[1], "echo") == 0) {
-        if (argc != 4) { fprintf(stderr,"Usage: %s echo <delay_sec> <decay>\n",argv[0]); return 1; }
-        double delay=atof(argv[2]); double decay=atof(argv[3]);
+        if (argc != 4) { fprintf(stderr,"Usage: %s echo <delay_sec> <decay>, try --help for more.\n",argv[0]); return 1; }
+        double delay, decay;
+          
+        if (!parse_double(argv[2], &delay) || !parse_double(argv[3], &decay)) {
+            fprintf(stderr,"Error: invalid echo params\n");
+            return 1;
+        }
         echo(delay, decay, 0, 0, 0);
         return 0;
     }
     else if (strcmp(argv[1], "tremolo") == 0) {
         if (argc != 4) { fprintf(stderr,"Usage: %s tremolo <rate> <depth>\n",argv[0]); return 1; }
-        double rate=atof(argv[2]); double depth=atof(argv[3]);
+          double rate, depth;
+        if (!parse_double(argv[2], &rate) || !parse_double(argv[3], &depth)) {
+            fprintf(stderr,"Error: invalid tremolo params\n");
+            return 1;
+        }
         tremolo(rate, depth, 0, 0, 0);
         return 0;
     }
     else if (strcmp(argv[1], "bitcrush") == 0) {
-        if (argc != 3) { fprintf(stderr,"Usage: %s bitcrush <bits>\n",argv[0]); return 1; }
-        int bits = atoi(argv[2]);
+        if (argc != 3) { fprintf(stderr,"Usage: %s bitcrush <bits>, try --help for more.\n",argv[0]); return 1; }
+        int bits;
+        
+        if (!parse_int(argv[2], &bits)) {
+            fprintf(stderr,"Error: invalid bits\n");
+            return 1;
+        }
+
         bitcrush(bits, 0, 0, 0);
         return 0;
     }
@@ -1467,15 +1583,19 @@ int handle_dj_effect(int argc, char **argv) {
         return 1;
     }
 
-    double start_sec  = atof(argv[2]);
-    double finish_sec = atof(argv[3]);
-    char *effect      = argv[4];
-
+    double start_sec, finish_sec;
+    if (!parse_double(argv[2], &start_sec) ||
+        !parse_double(argv[3], &finish_sec)) {
+        fprintf(stderr,"Error: start/finish must be numbers\n");
+        return 1;
+    }
+    
     if (start_sec < 0 || finish_sec <= start_sec) {
         fprintf(stderr, "Error: invalid start/finish\n");
         return 1;
     }
 
+    char *effect = argv[4];
     int effect_argc = argc - 4;
     char **effect_argv = &argv[4];
 
@@ -1490,7 +1610,11 @@ int handle_dj_effect(int argc, char **argv) {
             return 1;
         }
 
-        double fp_volume = atof(effect_argv[1]);
+        double fp_volume;
+        if (!parse_double(effect_argv[1], &fp_volume)) {
+            fprintf(stderr,"Error: invalid fp_volume\n");
+            return 1;
+        }
         volume(fp_volume, 1, start_sec, finish_sec);
         return 0;
     }
@@ -1506,7 +1630,11 @@ int handle_dj_effect(int argc, char **argv) {
             return 1;
         }
 
-        double fp_fuzz = atof(effect_argv[1]);
+        double fp_fuzz;
+        if (!parse_double(effect_argv[1], &fp_fuzz)) {
+            fprintf(stderr,"Error: invalid fuzz amount\n");
+            return 1;
+        }
         fuzz(fp_fuzz, 1, start_sec, finish_sec);
         return 0;
     }
@@ -1522,7 +1650,11 @@ int handle_dj_effect(int argc, char **argv) {
             return 1;
         }
 
-        double amount = atof(effect_argv[1]);
+        double amount;
+        if (!parse_double(effect_argv[1], &amount)) {
+            fprintf(stderr,"Error: invalid overdrive amount\n");
+            return 1;
+        }
         overdrive(amount, 1, start_sec, finish_sec);
         return 0;
     }
@@ -1538,8 +1670,12 @@ int handle_dj_effect(int argc, char **argv) {
             return 1;
         }
 
-        double delay = atof(effect_argv[1]);
-        double decay = atof(effect_argv[2]);
+      
+        double delay, decay;
+        if (!parse_double(effect_argv[1], &delay) || !parse_double(effect_argv[2], &decay)) {
+            fprintf(stderr,"Error: invalid echo params\n");
+            return 1;
+        }
         echo(delay, decay, 1, start_sec, finish_sec);
         return 0;
     }
@@ -1555,8 +1691,11 @@ int handle_dj_effect(int argc, char **argv) {
             return 1;
         }
 
-        double rate  = atof(effect_argv[1]);
-        double depth = atof(effect_argv[2]);
+       double rate, depth;
+        if (!parse_double(effect_argv[1], &rate) || !parse_double(effect_argv[2], &depth)) {
+            fprintf(stderr,"Error: invalid tremolo params\n");
+            return 1;
+        }
         tremolo(rate, depth, 1, start_sec, finish_sec);
         return 0;
     }
@@ -1572,7 +1711,12 @@ int handle_dj_effect(int argc, char **argv) {
             return 1;
         }
 
-        int bits = atoi(effect_argv[1]);
+        int bits;
+        if (!parse_int(effect_argv[1], &bits)) {
+            fprintf(stderr,"Error: invalid bits\n");
+            return 1;
+        }
+
         bitcrush(bits, 1, start_sec, finish_sec);
         return 0;
     }
@@ -1587,7 +1731,12 @@ int handle_dj_effect(int argc, char **argv) {
           return 1;
         }
 
-        double room = atof(effect_argv[1]);
+        double room;
+        if (!parse_double(effect_argv[1], &room)) {
+            fprintf(stderr,"Error: invalid room\n");
+            return 1;
+        }
+
          if (room <= 0 || room >= 1) {
          fprintf(stderr, "Error: room must be 0-1\n");
          return 1;
@@ -1631,8 +1780,8 @@ int main(int argc, char **argv) {
             if (strcmp(argv[1], "fuzz") == 0) { 
                 help_fuzz(); 
                 return 0; } 
-            if (strcmp(argv[1], "drive") == 0) { 
-                help_drive(); 
+            if (strcmp(argv[1], "overdrive") == 0) { 
+                help_overdrive(); 
                 return 0; } 
             if (strcmp(argv[1], "bitcrush") == 0) { 
                 help_bitcrush(); 
